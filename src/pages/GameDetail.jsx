@@ -21,7 +21,7 @@ function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle,
     line2 = t.entrance || 'Parque'
   } else {
     line1 = t.seat ? `L${t.seat}` : '—'
-    line2 = t.row ? `Fila ${t.row}` : t.zone || ''
+    line2 = null // a fila está no cabeçalho do grupo
   }
   const who = share ? initials(share.guest_name) : t.assigned_to ? initials(t.assignee?.name) : null
   return (
@@ -32,7 +32,7 @@ function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle,
     >
       {selecting && <span className={`tile-check ${selected ? 'on' : ''}`}>{selected ? '✓' : ''}</span>}
       <span className="tile-l1">{line1}</span>
-      <span className="tile-l2">{line2}</span>
+      {line2 && <span className="tile-l2">{line2}</span>}
       {who && <span className="tile-who">{who}</span>}
     </button>
   )
@@ -229,6 +229,41 @@ export default function GameDetail() {
     setSelected(s)
   }
 
+  // agrupa os bilhetes por setor+fila (bancadas e camarote); parque fica numa grelha única
+  function renderRowGroups(list) {
+    const groupsMap = new Map()
+    for (const t of list) {
+      const key = t.category === 'parque'
+        ? 'parque'
+        : [t.zone, t.sector, t.row].filter(Boolean).join('|') || 'outros'
+      if (!groupsMap.has(key)) groupsMap.set(key, { t, items: [] })
+      groupsMap.get(key).items.push(t)
+    }
+    const label = (t) => {
+      if (t.category === 'parque') return null
+      const bits = []
+      if (t.category === 'camarote') { if (t.zone) bits.push(t.zone) }
+      else if (t.sector) bits.push(`Setor ${t.sector}`)
+      if (t.row) bits.push(`Fila ${t.row}`)
+      return bits.join(' · ') || t.zone || null
+    }
+    return [...groupsMap.values()].map(({ t, items }, i) => (
+      <div className="row-group" key={i}>
+        {label(t) && <div className="row-head">{label(t)}</div>}
+        <div className="tile-grid">
+          {items.map((tk) => (
+            <TicketTile
+              key={tk.id} t={tk} me={profile?.id} isAdmin={isAdmin}
+              selecting={selecting} selected={selected.has(tk.id)} selectable={canSelect(tk)}
+              onToggle={toggle}
+              onOpen={(ticket) => setSheet({ type: 'ticket', ticket })}
+            />
+          ))}
+        </div>
+      </div>
+    ))
+  }
+
   function renderSection(title, list, emptyMsg) {
     const selectableCount = list.filter(canSelect).length
     return (
@@ -242,18 +277,7 @@ export default function GameDetail() {
           )}
         </div>
         {list.length === 0 && <p className="muted small section-empty">{emptyMsg}</p>}
-        {list.length > 0 && (
-          <div className="tile-grid">
-            {list.map((t) => (
-              <TicketTile
-                key={t.id} t={t} me={profile?.id} isAdmin={isAdmin}
-                selecting={selecting} selected={selected.has(t.id)} selectable={canSelect(t)}
-                onToggle={toggle}
-                onOpen={(ticket) => setSheet({ type: 'ticket', ticket })}
-              />
-            ))}
-          </div>
-        )}
+        {list.length > 0 && renderRowGroups(list)}
       </>
     )
   }
