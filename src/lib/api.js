@@ -32,7 +32,7 @@ export async function fetchGames() {
 export async function fetchGame(id) {
   const { data, error } = await supabase
     .from('games')
-    .select('*, tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name), shares(id, guest_name, guest_contact, url, revoked, created_at, shared_by))')
+    .select('*, tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by))')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -132,7 +132,14 @@ export async function getTicketUrl(ticket, expiresSeconds = 3600) {
 }
 
 // ---------- partilha com convidados ----------
-export async function shareTicket(ticket, guestName, guestContact, matchDate) {
+export function makeShareToken() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const buf = new Uint8Array(12)
+  crypto.getRandomValues(buf)
+  return [...buf].map((b) => chars[b % chars.length]).join('')
+}
+
+export async function shareTicket(ticket, guestName, guestContact, matchDate, token) {
   const { data: { user } } = await supabase.auth.getUser()
   // link válido até 3 dias depois do jogo (ou 30 dias se não houver data)
   let expiresSeconds = 30 * 24 * 3600
@@ -154,6 +161,7 @@ export async function shareTicket(ticket, guestName, guestContact, matchDate) {
       guest_name: guestName,
       guest_contact: guestContact || null,
       url,
+      token: token || null,
       expires_at: new Date(Date.now() + expiresSeconds * 1000).toISOString(),
     })
     .select()

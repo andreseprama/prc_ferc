@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity } from '../lib/api'
+import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity, makeShareToken } from '../lib/api'
 import { seatLabel } from '../lib/parseTicket'
 import { CATEGORIES, fmtDate, isTaken } from '../lib/format'
 import { useAuth } from '../AuthContext'
@@ -159,20 +159,21 @@ export default function GameDetail() {
     const w = window.open('', '_blank')
     setBusy(true)
     try {
-      const lines = []
+      // um token para o conjunto → uma única mensagem com um link curto
+      const token = makeShareToken()
       const shareIds = []
       let i = 0
       for (const t of tickets) {
         i++
-        setBusyMsg(tickets.length > 1 ? `A criar link ${i}/${tickets.length}…` : 'A criar link…')
-        const share = await shareTicket(t, guestName || 'Convidado (WhatsApp)', null, game.match_date)
+        setBusyMsg(tickets.length > 1 ? `A preparar ${i}/${tickets.length}…` : 'A preparar…')
+        const share = await shareTicket(t, guestName || 'Convidado (WhatsApp)', null, game.match_date, token)
         shareIds.push(share.id)
-        lines.push(tickets.length > 1 ? `• ${seatLabel(t)}: ${share.url}` : share.url)
       }
+      const shortLink = `${location.origin}${location.pathname}#/c/${token}`
       const text =
         tickets.length > 1
-          ? `Bilhetes ${gameHeader()}:\n${lines.join('\n')}`
-          : `Bilhete ${gameHeader()}. ${seatLabel(tickets[0])}. Abre aqui: ${lines[0]}`
+          ? `${tickets.length} bilhetes para ${gameHeader()}. Abre aqui: ${shortLink}`
+          : `Bilhete para ${gameHeader()} (${seatLabel(tickets[0])}). Abre aqui: ${shortLink}`
       const wa = guestTel
         ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
         : `https://wa.me/?text=${encodeURIComponent(text)}`
@@ -207,7 +208,7 @@ export default function GameDetail() {
   }
 
   async function doRevoke(share) {
-    if (!confirm(`Anular a partilha com ${share.guest_name}? (quem já tiver o link pode ainda abri-lo até expirar)`)) return
+    if (!confirm(`Anular a partilha com ${share.guest_name}? O link deixa de funcionar.`)) return
     await revokeShare(share)
     load()
   }
@@ -355,7 +356,7 @@ export default function GameDetail() {
                 </button>
                 {activeShare && (
                   <>
-                    <button className="btn ghost" onClick={() => { navigator.clipboard.writeText(activeShare.url); alert('Link copiado.') }}>Copiar link da partilha</button>
+                    <button className="btn ghost" onClick={() => { navigator.clipboard.writeText(activeShare.token ? `${location.origin}${location.pathname}#/c/${activeShare.token}` : activeShare.url); alert('Link copiado.') }}>Copiar link da partilha</button>
                     <button className="btn danger ghost" onClick={() => doRevoke(activeShare)}>Anular partilha</button>
                   </>
                 )}

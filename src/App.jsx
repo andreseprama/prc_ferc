@@ -7,6 +7,7 @@ import GameDetail from './pages/GameDetail'
 import ImportGame from './pages/ImportGame'
 import Activity from './pages/Activity'
 import Profile from './pages/Profile'
+import GuestShare from './pages/GuestShare'
 
 function Icon({ name }) {
   const paths = {
@@ -37,7 +38,7 @@ function Shell({ children }) {
   )
 }
 
-function Gate() {
+function AuthedApp() {
   const { session } = useAuth()
   if (session === undefined) return <div className="center-screen"><div className="spinner" /></div>
   if (!session) return <Login />
@@ -52,6 +53,16 @@ function Gate() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>
+  )
+}
+
+function Gate() {
+  return (
+    <Routes>
+      {/* página pública do convidado — não exige login */}
+      <Route path="/c/:token" element={<GuestShare />} />
+      <Route path="/*" element={<AuthedApp />} />
+    </Routes>
   )
 }
 
