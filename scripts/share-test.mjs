@@ -34,7 +34,7 @@ await p.route(`${SB}/**`, (route) => {
 await p.goto('http://localhost:4173/#/jogo/g1', { waitUntil: 'domcontentloaded' })
 await p.fill('input[type=email]', 'a@a.pt'); await p.fill('input[type=password]', 'x')
 await p.click('button:has-text("Entrar")'); await p.waitForTimeout(1200)
-await p.click('.ticket >> nth=0'); await p.waitForTimeout(400)
+await p.click('.tile >> nth=0'); await p.waitForTimeout(400)
 await p.click('button:has-text("Partilhar por WhatsApp")'); await p.waitForTimeout(1500)
 console.log('wa.me aberto →', popupUrl ? popupUrl.slice(0, 90) : 'NÃO')
 console.log('sheet →', (await p.textContent('.sheet').catch(() => 'SEM SHEET'))?.slice(0, 140))

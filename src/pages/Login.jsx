@@ -26,7 +26,7 @@ export default function Login() {
   return (
     <div className="center-screen login">
       <div className="login-card">
-        <div className="login-badge">🎟️</div>
+        <div className="login-badge">GP</div>
         <h1>{APP_NAME}</h1>
         <p className="muted">Gestão dos bilhetes do Estádio do Dragão</p>
         <form onSubmit={submit}>

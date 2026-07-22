@@ -4,26 +4,36 @@ import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, rev
 import { seatLabel } from '../lib/parseTicket'
 import { CATEGORIES, fmtDate, isTaken } from '../lib/format'
 import { useAuth } from '../AuthContext'
+import CatIcon from '../components/CatIcon'
 
-function TicketRow({ t, me, isAdmin, selected, selecting, selectable, onToggle, onOpen }) {
+function initials(name) {
+  if (!name) return ''
+  return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
+function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle, onOpen }) {
   const mine = t.assigned_to === me
   const share = t.shares?.find((s) => !s.revoked)
+  const state = share ? 'sent' : t.assigned_to ? 'reserved' : 'free'
+  let line1, line2
+  if (t.category === 'parque') {
+    line1 = 'P'
+    line2 = t.entrance || 'Parque'
+  } else {
+    line1 = t.seat ? `L${t.seat}` : '—'
+    line2 = t.row ? `Fila ${t.row}` : t.zone || ''
+  }
+  const who = share ? initials(share.guest_name) : t.assigned_to ? initials(t.assignee?.name) : null
   return (
     <button
-      className={`ticket ${selected ? 'selected' : ''} ${selecting && !selectable ? 'dim' : ''}`}
+      className={`tile st-${state} ${selected ? 'selected' : ''} ${selecting && !selectable ? 'dim' : ''} ${mine ? 'is-mine' : ''}`}
       onClick={() => (selecting ? (selectable && onToggle(t.id)) : onOpen(t))}
+      title={seatLabel(t)}
     >
-      {selecting && <span className={`checkbox ${selected ? 'on' : ''} ${!selectable ? 'off' : ''}`} />}
-      <div className="ticket-main">
-        <strong>{seatLabel(t)}</strong>
-        <span className="muted small">
-          {t.assigned_to
-            ? <>Reservado para <b className={mine ? 'mine' : ''}>{t.assignee?.name || '—'}</b>{t.guest_note ? ` (${t.guest_note})` : ''}</>
-            : share ? null : 'Por atribuir'}
-          {share && <>{t.assigned_to ? ' · ' : ''}📤 Enviado a <b>{share.guest_name}</b></>}
-        </span>
-      </div>
-      {(mine || isAdmin) && t.assigned_to && <span className="pdf-ind">PDF</span>}
+      {selecting && <span className={`tile-check ${selected ? 'on' : ''}`}>{selected ? '✓' : ''}</span>}
+      <span className="tile-l1">{line1}</span>
+      <span className="tile-l2">{line2}</span>
+      {who && <span className="tile-who">{who}</span>}
     </button>
   )
 }
@@ -46,7 +56,11 @@ export default function GameDetail() {
     fetchGame(id).then(setGame).catch((e) => setError(e.message))
   }, [id])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    window.addEventListener('focus', load)
+    return () => window.removeEventListener('focus', load)
+  }, [load])
   useEffect(() => { fetchProfiles().then(setProfiles).catch(() => {}) }, [])
 
   const sortT = (a, b) =>
@@ -207,21 +221,39 @@ export default function GameDetail() {
   const activeTicket = sheet?.type === 'ticket' ? sheet.ticket : null
   const activeShare = activeTicket?.shares?.find((s) => !s.revoked)
 
+  function toggleAll(list) {
+    const ids = list.filter(canSelect).map((t) => t.id)
+    const s = new Set(selected)
+    const allIn = ids.length > 0 && ids.every((id) => s.has(id))
+    ids.forEach((id) => (allIn ? s.delete(id) : s.add(id)))
+    setSelected(s)
+  }
+
   function renderSection(title, list, emptyMsg) {
+    const selectableCount = list.filter(canSelect).length
     return (
       <>
         <div className="section-head">
           <span>{title}</span><span className="count">{list.length}</span>
+          {selecting && selectableCount > 0 && (
+            <button className="link-btn" onClick={() => toggleAll(list)}>
+              {list.filter(canSelect).every((t) => selected.has(t.id)) ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+          )}
         </div>
         {list.length === 0 && <p className="muted small section-empty">{emptyMsg}</p>}
-        {list.map((t) => (
-          <TicketRow
-            key={t.id} t={t} me={profile?.id} isAdmin={isAdmin}
-            selecting={selecting} selected={selected.has(t.id)} selectable={canSelect(t)}
-            onToggle={toggle}
-            onOpen={(ticket) => setSheet({ type: 'ticket', ticket })}
-          />
-        ))}
+        {list.length > 0 && (
+          <div className="tile-grid">
+            {list.map((t) => (
+              <TicketTile
+                key={t.id} t={t} me={profile?.id} isAdmin={isAdmin}
+                selecting={selecting} selected={selected.has(t.id)} selectable={canSelect(t)}
+                onToggle={toggle}
+                onOpen={(ticket) => setSheet({ type: 'ticket', ticket })}
+              />
+            ))}
+          </div>
+        )}
       </>
     )
   }
@@ -245,7 +277,7 @@ export default function GameDetail() {
           const a = game.tickets.filter((t) => t.category === c && isTaken(t)).length
           return (
             <button key={c} className={tab === c ? 'active' : ''} onClick={() => setTab(c)}>
-              {CATEGORIES[c].emoji} {CATEGORIES[c].label} <small>{a}/{n}</small>
+              <CatIcon cat={c} size={15} /> {CATEGORIES[c].label} <small>{a}/{n}</small>
             </button>
           )
         })}
@@ -288,7 +320,7 @@ export default function GameDetail() {
               : activeShare ? 'Enviado a convidado' : 'Por atribuir'}
           </p>
           {activeShare && (
-            <p className="muted small">📤 Partilhado com <b>{activeShare.guest_name}</b>{activeShare.guest_contact ? ` (${activeShare.guest_contact})` : ''}</p>
+            <p className="muted small">Enviado a <b>{activeShare.guest_name}</b>{activeShare.guest_contact ? ` (${activeShare.guest_contact})` : ''}</p>
           )}
           <div className="sheet-actions">
             {(isAdmin || activeTicket.assigned_to === profile?.id) && (

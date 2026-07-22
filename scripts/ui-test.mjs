@@ -70,7 +70,7 @@ console.log('detalhe →', (await p.textContent('.tabs'))?.trim())
 await shot('jogo')
 
 // abrir um bilhete (sheet)
-await p.click('.ticket >> nth=0')
+await p.click('.tile >> nth=0')
 await p.waitForTimeout(500)
 console.log('sheet →', (await p.textContent('.sheet'))?.slice(0, 160))
 await shot('sheet')
@@ -83,7 +83,7 @@ console.log('camarote →', (await p.textContent('.tickets'))?.slice(0, 160))
 
 // modo selecionar
 await p.click('button:has-text("Selecionar")')
-await p.click('.ticket >> nth=0')
+await p.click('.tile >> nth=0')
 await p.waitForTimeout(300)
 console.log('floatbar →', (await p.textContent('.floatbar').catch(() => 'FALHOU')))
 await shot('selecao')

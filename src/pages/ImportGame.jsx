@@ -4,6 +4,7 @@ import { importGame } from '../lib/api'
 import { seatLabel } from '../lib/parseTicket'
 import { CATEGORIES } from '../lib/format'
 import { useAuth } from '../AuthContext'
+import CatIcon from '../components/CatIcon'
 
 export default function ImportGame() {
   const { isAdmin } = useAuth()
@@ -67,7 +68,7 @@ export default function ImportGame() {
           {error && <p className="error">{error}</p>}
           <label className="dropzone">
             <input type="file" accept=".zip,application/zip,application/x-zip-compressed" onChange={onFile} hidden />
-            <span>📦 Escolher zip de bilhetes</span>
+            <span>Escolher zip de bilhetes</span>
           </label>
         </div>
       )}
@@ -106,7 +107,7 @@ export default function ImportGame() {
           <p><b>{result.tickets.length} bilhetes encontrados</b></p>
           <div className="chips">
             {Object.entries(counts).map(([c, n]) => (
-              <span key={c} className={`chip cat-${c}`}>{CATEGORIES[c]?.emoji || '❓'} {CATEGORIES[c]?.label || c} · {n}</span>
+              <span key={c} className={`chip cat-${c}`}><CatIcon cat={c} size={14} /> {CATEGORIES[c]?.label || c} · {n}</span>
             ))}
           </div>
 
