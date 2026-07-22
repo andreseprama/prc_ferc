@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, deleteGame, logActivity } from '../lib/api'
+import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity } from '../lib/api'
 import { seatLabel } from '../lib/parseTicket'
 import { CATEGORIES, fmtDate } from '../lib/format'
 import { useAuth } from '../AuthContext'
@@ -112,34 +112,82 @@ export default function GameDetail() {
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
-  function waShare(text) {
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-  }
-
   function gameHeader() {
     return `${game.title} — ${fmtDate(game.match_date)}${game.match_time ? ' às ' + game.match_time : ''}`
   }
 
-  async function doShare(guestName, guestContact) {
+  // normaliza um número de telefone para o formato wa.me (só dígitos, com indicativo)
+  function normTel(raw) {
+    if (!raw) return null
+    let d = String(raw).replace(/\D/g, '')
+    if (d.startsWith('00')) d = d.slice(2)
+    if (d.length === 9 && /^9/.test(d)) d = '351' + d // telemóvel PT sem indicativo
+    return d.length >= 9 ? d : null
+  }
+
+  // Fluxo pedido: tocar em "Partilhar WhatsApp" vai direto aos contactos.
+  // Android (Chrome): seletor de contactos do telefone → capta o nome e abre o chat da pessoa.
+  // iPhone: abre o WhatsApp na lista de contactos; ao voltar, a app pergunta a quem foi enviado.
+  async function startShare(tickets) {
+    let guestName = null
+    let guestTel = null
+    if (navigator.contacts?.select) {
+      try {
+        const picked = await navigator.contacts.select(['name', 'tel'])
+        if (!picked?.length) return
+        guestName = picked[0].name?.[0] || null
+        guestTel = normTel(picked[0].tel?.[0])
+      } catch { return } // cancelado
+    }
+    // abrir a janela já (antes dos passos assíncronos), para o iOS não bloquear o pop-up
+    const w = window.open('', '_blank')
     setBusy(true)
     try {
-      const tickets = sheet.type === 'bulkshare' ? sheet.tickets : [sheet.ticket]
       const lines = []
+      const shareIds = []
       let i = 0
       for (const t of tickets) {
         i++
         setBusyMsg(tickets.length > 1 ? `A criar link ${i}/${tickets.length}…` : 'A criar link…')
-        const share = await shareTicket(t, guestName, guestContact, game.match_date)
+        const share = await shareTicket(t, guestName || 'Convidado (WhatsApp)', null, game.match_date)
+        shareIds.push(share.id)
         lines.push(tickets.length > 1 ? `• ${seatLabel(t)}: ${share.url}` : share.url)
       }
-      setSheet(null); exitSelect()
-      load()
       const text =
         tickets.length > 1
           ? `Bilhetes ${gameHeader()}:\n${lines.join('\n')}`
           : `Bilhete ${gameHeader()}. ${seatLabel(tickets[0])}. Abre aqui: ${lines[0]}`
-      waShare(text)
-    } catch (e) { alert(e.message) } finally { setBusy(false); setBusyMsg('') }
+      const wa = guestTel
+        ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`
+      if (w) w.location = wa
+      else window.location.href = wa
+      exitSelect()
+      load()
+      // sem seletor de contactos (iPhone): perguntar o nome quando voltar à app
+      setSheet(guestName ? null : { type: 'nameAfter', shareIds, count: tickets.length })
+    } catch (e) {
+      w?.close()
+      alert(e.message)
+    } finally { setBusy(false); setBusyMsg('') }
+  }
+
+  async function doNameAfter(name, contact) {
+    setBusy(true)
+    try {
+      await updateShareNames(sheet.shareIds, name, contact)
+      setSheet(null)
+      load()
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
+  async function doUndoShare() {
+    setBusy(true)
+    try {
+      await revokeShares(sheet.shareIds)
+      setSheet(null)
+      load()
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
   async function doRevoke(share) {
@@ -220,8 +268,8 @@ export default function GameDetail() {
               <button className="btn small" onClick={() => setSheet({ type: 'assign', ids: selected })}>Reservar</button>
             )}
             {canBulkShare && (
-              <button className="btn small wa" onClick={() => setSheet({ type: 'bulkshare', tickets: selectedTickets })}>
-                Partilhar WhatsApp
+              <button className="btn small wa" disabled={busy} onClick={() => startShare(selectedTickets)}>
+                {busy ? (busyMsg || 'A criar…') : 'Partilhar WhatsApp'}
               </button>
             )}
           </div>
@@ -241,7 +289,9 @@ export default function GameDetail() {
             {(isAdmin || activeTicket.assigned_to === profile?.id) && (
               <>
                 <button className="btn primary" onClick={() => openPdf(activeTicket)}>Ver bilhete (PDF)</button>
-                <button className="btn wa" onClick={() => setSheet({ type: 'share', ticket: activeTicket })}>Partilhar por WhatsApp</button>
+                <button className="btn wa" disabled={busy} onClick={() => { const t = activeTicket; setSheet(null); startShare([t]) }}>
+                  {busy ? (busyMsg || 'A criar…') : 'Partilhar por WhatsApp'}
+                </button>
                 {activeShare && (
                   <>
                     <button className="btn ghost" onClick={() => { navigator.clipboard.writeText(activeShare.url); alert('Link copiado.') }}>Copiar link da partilha</button>
@@ -268,11 +318,11 @@ export default function GameDetail() {
         <AssignSheet profiles={profiles} busy={busy} count={sheet.ids.size ?? sheet.ids.length} onAssign={doAssign} onClose={() => setSheet(null)} />
       )}
 
-      {(sheet?.type === 'share' || sheet?.type === 'bulkshare') && (
-        <ShareSheet
-          busy={busy} busyMsg={busyMsg}
-          count={sheet.type === 'bulkshare' ? sheet.tickets.length : 1}
-          onShare={doShare} onClose={() => setSheet(null)}
+      {sheet?.type === 'nameAfter' && (
+        <NameAfterSheet
+          busy={busy} count={sheet.count}
+          onSave={doNameAfter} onUndo={doUndoShare}
+          onClose={() => setSheet(null)}
         />
       )}
     </div>
@@ -316,28 +366,28 @@ function AssignSheet({ profiles, count, busy, onAssign, onClose }) {
   )
 }
 
-function ShareSheet({ busy, busyMsg, count, onShare, onClose }) {
+function NameAfterSheet({ busy, count, onSave, onUndo, onClose }) {
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   return (
-    <Sheet title={count > 1 ? `Partilhar ${count} bilhetes` : 'Partilhar bilhete'} onClose={onClose}>
+    <Sheet title="A quem enviaste?" onClose={onClose}>
       <p className="muted small">
-        {count > 1
-          ? 'São criados links seguros para os PDFs e abre-se o WhatsApp com tudo pronto a enviar. Fica registado a quem foram.'
-          : 'É criado um link seguro para o PDF e abre-se o WhatsApp pronto a enviar. Fica registado a quem foi.'}
+        {count > 1 ? `Enviaste ${count} bilhetes por WhatsApp.` : 'Enviaste 1 bilhete por WhatsApp.'}{' '}
+        Escreve o nome do contacto para ficar registado.
       </p>
       <label>
-        Nome do convidado
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: João Silva" />
+        Nome do contacto
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex.: João Silva" autoFocus />
       </label>
       <label>
-        Contacto (opcional)
-        <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="telemóvel ou email" />
+        Telemóvel (opcional)
+        <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="ex.: 912 345 678" />
       </label>
       <div className="sheet-actions">
-        <button className="btn primary" disabled={!name.trim() || busy} onClick={() => onShare(name.trim(), contact.trim())}>
-          {busy ? (busyMsg || 'A criar…') : 'Criar e abrir WhatsApp'}
+        <button className="btn primary" disabled={!name.trim() || busy} onClick={() => onSave(name.trim(), contact.trim())}>
+          {busy ? 'A guardar…' : 'Guardar'}
         </button>
+        <button className="btn danger ghost" disabled={busy} onClick={onUndo}>Afinal não enviei — anular</button>
       </div>
     </Sheet>
   )

@@ -22,6 +22,7 @@ export const ACTION_LABELS = {
   bilhetes_atribuidos: 'atribuiu bilhetes',
   atribuicao_removida: 'removeu uma atribuição',
   bilhete_partilhado: 'partilhou um bilhete',
+  convidado_identificado: 'identificou o convidado',
   partilha_anulada: 'anulou uma partilha',
   bilhete_aberto: 'abriu um bilhete',
 }

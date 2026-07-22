@@ -167,6 +167,24 @@ export async function shareTicket(ticket, guestName, guestContact, matchDate) {
   return share
 }
 
+// atualizar o nome do convidado depois do envio (fluxo WhatsApp)
+export async function updateShareNames(shareIds, name, contact) {
+  const { error } = await supabase
+    .from('shares')
+    .update({ guest_name: name, guest_contact: contact || null })
+    .in('id', shareIds)
+  if (error) throw error
+  await logActivity('convidado_identificado', {
+    details: { convidado: name, partilhas: shareIds.length },
+  })
+}
+
+export async function revokeShares(shareIds) {
+  const { error } = await supabase.from('shares').update({ revoked: true }).in('id', shareIds)
+  if (error) throw error
+  await logActivity('partilha_anulada', { details: { partilhas: shareIds.length } })
+}
+
 export async function revokeShare(share) {
   const { error } = await supabase.from('shares').update({ revoked: true }).eq('id', share.id)
   if (error) throw error
