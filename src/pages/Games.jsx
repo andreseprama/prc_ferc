@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchGames } from '../lib/api'
-import { CATEGORIES, fmtDate } from '../lib/format'
+import { CATEGORIES, fmtDate, isTaken } from '../lib/format'
 import { useAuth } from '../AuthContext'
 
 export default function Games() {
@@ -33,7 +33,7 @@ export default function Games() {
           for (const t of g.tickets) {
             byCat[t.category] = byCat[t.category] || { total: 0, assigned: 0 }
             byCat[t.category].total++
-            if (t.assigned_to) byCat[t.category].assigned++
+            if (isTaken(t)) byCat[t.category].assigned++
           }
           return (
             <Link key={g.id} to={`/jogo/${g.id}`} className="card game-card">

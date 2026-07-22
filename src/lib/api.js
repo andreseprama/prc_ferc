@@ -23,7 +23,7 @@ export async function fetchProfiles() {
 export async function fetchGames() {
   const { data, error } = await supabase
     .from('games')
-    .select('*, tickets(id, category, assigned_to)')
+    .select('*, tickets(id, category, assigned_to, shares(revoked))')
     .order('match_date', { ascending: false })
   if (error) throw error
   return data

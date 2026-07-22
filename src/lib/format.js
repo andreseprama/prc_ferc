@@ -4,6 +4,12 @@ export const CATEGORIES = {
   parque: { label: 'Parque', singular: 'Parque', emoji: '🅿️' },
 }
 
+// Um bilhete conta como "atribuído" se estiver reservado para alguém
+// ou enviado a um convidado (partilha ativa)
+export function isTaken(t) {
+  return !!t.assigned_to || (t.shares || []).some((s) => !s.revoked)
+}
+
 export function fmtDate(iso) {
   if (!iso) return ''
   const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''))

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity } from '../lib/api'
 import { seatLabel } from '../lib/parseTicket'
-import { CATEGORIES, fmtDate } from '../lib/format'
+import { CATEGORIES, fmtDate, isTaken } from '../lib/format'
 import { useAuth } from '../AuthContext'
 
 function TicketRow({ t, me, isAdmin, selected, selecting, selectable, onToggle, onOpen }) {
@@ -19,8 +19,8 @@ function TicketRow({ t, me, isAdmin, selected, selecting, selectable, onToggle, 
         <span className="muted small">
           {t.assigned_to
             ? <>Reservado para <b className={mine ? 'mine' : ''}>{t.assignee?.name || '—'}</b>{t.guest_note ? ` (${t.guest_note})` : ''}</>
-            : 'Por atribuir'}
-          {share && <> · 📤 {share.guest_name}</>}
+            : share ? null : 'Por atribuir'}
+          {share && <>{t.assigned_to ? ' · ' : ''}📤 Enviado a <b>{share.guest_name}</b></>}
         </span>
       </div>
       {(mine || isAdmin) && t.assigned_to && <span className="pdf-ind">PDF</span>}
@@ -59,8 +59,8 @@ export default function GameDetail() {
     if (!game) return { unassigned: [], assigned: [] }
     const list = game.tickets.filter((t) => t.category === tab)
     return {
-      unassigned: list.filter((t) => !t.assigned_to).sort(sortT),
-      assigned: list.filter((t) => t.assigned_to).sort(sortT),
+      unassigned: list.filter((t) => !isTaken(t)).sort(sortT),
+      assigned: list.filter((t) => isTaken(t)).sort(sortT),
     }
   }, [game, tab])
 
@@ -240,7 +240,7 @@ export default function GameDetail() {
       <div className="tabs">
         {cats.map((c) => {
           const n = game.tickets.filter((t) => t.category === c).length
-          const a = game.tickets.filter((t) => t.category === c && t.assigned_to).length
+          const a = game.tickets.filter((t) => t.category === c && isTaken(t)).length
           return (
             <button key={c} className={tab === c ? 'active' : ''} onClick={() => setTab(c)}>
               {CATEGORIES[c].emoji} {CATEGORIES[c].label} <small>{a}/{n}</small>
@@ -280,7 +280,9 @@ export default function GameDetail() {
         <Sheet onClose={() => setSheet(null)} title={seatLabel(activeTicket)}>
           <p className="muted small">
             {activeTicket.zone && <>{activeTicket.zone} · </>}
-            {activeTicket.assigned_to ? <>Reservado para <b>{activeTicket.assignee?.name}</b>{activeTicket.guest_note ? ` (${activeTicket.guest_note})` : ''}</> : 'Por atribuir'}
+            {activeTicket.assigned_to
+              ? <>Reservado para <b>{activeTicket.assignee?.name}</b>{activeTicket.guest_note ? ` (${activeTicket.guest_note})` : ''}</>
+              : activeShare ? 'Enviado a convidado' : 'Por atribuir'}
           </p>
           {activeShare && (
             <p className="muted small">📤 Partilhado com <b>{activeShare.guest_name}</b>{activeShare.guest_contact ? ` (${activeShare.guest_contact})` : ''}</p>
