@@ -58,9 +58,11 @@ export default function GameDetail() {
   const groups = useMemo(() => {
     if (!game) return { unassigned: [], assigned: [] }
     const list = game.tickets.filter((t) => t.category === tab)
+    const hasShare = (t) => (t.shares || []).some((s) => !s.revoked)
     return {
       unassigned: list.filter((t) => !isTaken(t)).sort(sortT),
-      assigned: list.filter((t) => isTaken(t)).sort(sortT),
+      reserved: list.filter((t) => t.assigned_to && !hasShare(t)).sort(sortT),
+      sent: list.filter((t) => hasShare(t)).sort(sortT),
     }
   }, [game, tab])
 
@@ -78,7 +80,7 @@ export default function GameDetail() {
   if (!game) return <div className="center-fill"><div className="spinner" /></div>
 
   const canSelect = (t) => isAdmin || t.assigned_to === profile?.id
-  const allTickets = [...groups.unassigned, ...groups.assigned]
+  const allTickets = [...groups.unassigned, ...groups.reserved, ...groups.sent]
   const selectedTickets = allTickets.filter((t) => selected.has(t.id))
   // partilhar em bloco: todos os selecionados têm de ser meus (ou ser admin) e ter PDF
   const canBulkShare = selectedTickets.length > 0 && selectedTickets.every((t) => isAdmin || t.assigned_to === profile?.id)
@@ -251,7 +253,8 @@ export default function GameDetail() {
 
       <div className="tickets">
         {renderSection('Por atribuir', groups.unassigned, 'Nenhum bilhete por atribuir nesta categoria.')}
-        {renderSection('Atribuídos', groups.assigned, 'Ainda não há bilhetes atribuídos nesta categoria.')}
+        {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.')}
+        {renderSection('Enviados', groups.sent, 'Nenhum bilhete enviado a convidados nesta categoria.')}
       </div>
 
       {isAdmin && !selecting && (
