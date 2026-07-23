@@ -155,12 +155,21 @@ export default function GameDetail() {
         guestTel = normTel(picked[0].tel?.[0])
       } catch { return } // cancelado
     }
-    // abrir a janela já (antes dos passos assíncronos), para o iOS não bloquear o pop-up
-    const w = window.open('', '_blank')
+    // O link curto é gerado localmente, por isso o WhatsApp abre LOGO (sem páginas em branco);
+    // os bilhetes são preparados em segundo plano enquanto o utilizador escolhe o contacto.
+    const token = makeShareToken()
+    const shortLink = `${location.origin}${location.pathname}#/c/${token}`
+    const text =
+      tickets.length > 1
+        ? `${tickets.length} bilhetes para ${gameHeader()}. Abre aqui: ${shortLink}`
+        : `Bilhete para ${gameHeader()} (${seatLabel(tickets[0])}). Abre aqui: ${shortLink}`
+    const wa = guestTel
+      ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
+    const w = window.open(wa, '_blank')
+    if (!w) window.location.href = wa
     setBusy(true)
     try {
-      // um token para o conjunto → uma única mensagem com um link curto
-      const token = makeShareToken()
       const shareIds = []
       let i = 0
       for (const t of tickets) {
@@ -169,23 +178,12 @@ export default function GameDetail() {
         const share = await shareTicket(t, guestName || 'Convidado (WhatsApp)', null, game.match_date, token)
         shareIds.push(share.id)
       }
-      const shortLink = `${location.origin}${location.pathname}#/c/${token}`
-      const text =
-        tickets.length > 1
-          ? `${tickets.length} bilhetes para ${gameHeader()}. Abre aqui: ${shortLink}`
-          : `Bilhete para ${gameHeader()} (${seatLabel(tickets[0])}). Abre aqui: ${shortLink}`
-      const wa = guestTel
-        ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
-        : `https://wa.me/?text=${encodeURIComponent(text)}`
-      if (w) w.location = wa
-      else window.location.href = wa
       exitSelect()
       load()
       // sem seletor de contactos (iPhone): perguntar o nome quando voltar à app
       setSheet(guestName ? null : { type: 'nameAfter', shareIds, count: tickets.length })
     } catch (e) {
-      w?.close()
-      alert(e.message)
+      alert(`Atenção: não foi possível preparar os bilhetes — o link enviado NÃO vai funcionar. Apaga a mensagem no WhatsApp e tenta outra vez. (${e.message})`)
     } finally { setBusy(false); setBusyMsg('') }
   }
 

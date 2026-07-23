@@ -50,7 +50,9 @@ await p.click('button:has-text("Selecionar")')
 await p.click('button:has-text("Selecionar todos")')
 await p.click('button:has-text("Partilhar WhatsApp")')
 await p.waitForTimeout(1500)
-const decoded = waUrl ? decodeURIComponent(waUrl) : ''
+const allPages = ctx.pages().map(pg => pg.url())
+const waPage = allPages.find(u => u.includes('wa.me')) || waUrl
+const decoded = waPage ? decodeURIComponent(waPage) : ''
 console.log('mensagem →', decoded.replace(/^https:\/\/wa\.me\/\?text=/, '').slice(0, 160))
 console.log('nº de links na mensagem:', (decoded.match(/#\/c\//g) || []).length)
 console.log('tokens iguais nos 3 registos:', new Set(sharePosts.map(s => s.token)).size === 1, '| token len:', sharePosts[0]?.token?.length)

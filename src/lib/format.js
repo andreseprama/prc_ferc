@@ -31,4 +31,7 @@ export const ACTION_LABELS = {
   convidado_identificado: 'identificou o convidado',
   partilha_anulada: 'anulou uma partilha',
   bilhete_aberto: 'abriu um bilhete',
+  utilizador_criado: 'adicionou um utilizador',
+  utilizador_apagado: 'removeu um utilizador',
+  perfil_alterado: 'alterou um perfil',
 }

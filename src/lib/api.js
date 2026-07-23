@@ -217,3 +217,30 @@ export async function updateProfile(id, patch) {
   const { error } = await supabase.from('profiles').update(patch).eq('id', id)
   if (error) throw error
 }
+
+// ---------- gestão de utilizadores (admin) ----------
+export async function adminCreateUser(email, password, name, role) {
+  const { data, error } = await supabase.rpc('admin_create_user', {
+    new_email: email, new_password: password, new_name: name, new_role: role,
+  })
+  if (error) throw error
+  await logActivity('utilizador_criado', { details: { nome: name, email } })
+  return data
+}
+
+export async function adminDeleteUser(id, name) {
+  const { error } = await supabase.rpc('admin_delete_user', { target: id })
+  if (error) throw error
+  await logActivity('utilizador_apagado', { details: { nome: name } })
+}
+
+export async function changeRole(id, role, name) {
+  const { error } = await supabase.from('profiles').update({ role }).eq('id', id)
+  if (error) throw error
+  await logActivity('perfil_alterado', { details: { nome: name, perfil: role === 'admin' ? 'Administrador' : 'Membro' } })
+}
+
+export async function changeMyPassword(password) {
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) throw error
+}
