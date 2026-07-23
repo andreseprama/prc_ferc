@@ -32,7 +32,7 @@ export async function fetchGames() {
 export async function fetchGame(id) {
   const { data, error } = await supabase
     .from('games')
-    .select('*, kids:game_kids(id, name, birthdate, added_by, sent_at, sent_by, adder:profiles(name)), tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name, company), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by, sharer:profiles!shares_shared_by_fkey(company)))')
+    .select('*, kids:game_kids(id, name, birthdate, added_by, sent_at, sent_by, adder:profiles!game_kids_added_by_fkey(name)), tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name, company), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by, sharer:profiles!shares_shared_by_fkey(company)))')
     .eq('id', id)
     .single()
   if (error) throw error
