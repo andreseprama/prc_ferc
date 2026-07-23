@@ -166,10 +166,13 @@ export default function GameDetail() {
     const wa = guestTel
       ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`
-    // Instalada no ecrã principal: abre o WhatsApp por cima da app (sem separadores novos),
-    // para que ao voltar o utilizador esteja exatamente onde estava.
+    // Abertura do WhatsApp compatível com Safari e Chrome:
+    // - app instalada (ecrã principal): navegação direta — abre por cima da app, sem separadores
+    // - Chrome Android após o seletor de contactos: navegação direta (janelas novas seriam bloqueadas)
+    // - browser normal: janela nova, com navegação direta como recurso
     const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
-    if (standalone) {
+    const usedPicker = guestName !== null || guestTel !== null
+    if (standalone || usedPicker) {
       window.location.href = wa
     } else {
       const w = window.open(wa, '_blank')
