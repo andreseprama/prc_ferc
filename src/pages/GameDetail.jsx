@@ -12,7 +12,7 @@ function initials(name) {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle, onOpen }) {
+function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle, onOpen, showPlace, hideWho }) {
   const mine = t.assigned_to === me
   const share = t.shares?.find((s) => !s.revoked)
   const state = share ? 'sent' : t.assigned_to ? 'reserved' : 'free'
@@ -22,9 +22,10 @@ function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle,
     line2 = t.entrance || 'Parque'
   } else {
     line1 = t.seat ? `L${t.seat}` : '—'
-    line2 = null // a fila está no cabeçalho do grupo
+    // agrupado por lugar: a fila está no cabeçalho; agrupado por pessoa: mostra o lugar completo
+    line2 = showPlace ? [t.sector && `S${t.sector}`, t.row && `F${t.row}`].filter(Boolean).join(' · ') || t.zone : null
   }
-  const who = share ? initials(share.guest_name) : t.assigned_to ? initials(t.assignee?.name) : null
+  const who = hideWho ? null : share ? initials(share.guest_name) : t.assigned_to ? initials(t.assignee?.name) : null
   const cmp = ticketCompany(t)
   return (
     <button
@@ -261,7 +262,44 @@ export default function GameDetail() {
     ))
   }
 
-  function renderSection(title, list, emptyMsg) {
+  // agrupa por pessoa (reservados: membro; enviados: convidado) com o nome bem visível
+  function renderPersonGroups(list, kind) {
+    const map = new Map()
+    for (const t of list) {
+      const share = (t.shares || []).find((s) => !s.revoked)
+      const key = kind === 'sent' ? `g:${share?.guest_name || '—'}` : `m:${t.assignee?.id || '—'}`
+      if (!map.has(key)) map.set(key, { t, share, items: [] })
+      map.get(key).items.push(t)
+    }
+    const groupsArr = [...map.values()].map((g) => ({
+      ...g,
+      label: kind === 'sent' ? (g.share?.guest_name || 'Convidado') : (g.t.assignee?.name || '—'),
+    })).sort((a, b) => a.label.localeCompare(b.label))
+    return groupsArr.map(({ t, items, label }, i) => {
+      const cmp = ticketCompany(t)
+      return (
+        <div className="row-group" key={i}>
+          <div className="row-head person">
+            <span className="person-label">{label}</span>
+            {cmp && <span className={`chip cmp-chip cmp-${cmp}`}>{COMPANIES[cmp].label}</span>}
+            <span className="count">{items.length}</span>
+          </div>
+          <div className="tile-grid">
+            {items.sort(sortT).map((tk) => (
+              <TicketTile
+                key={tk.id} t={tk} me={profile?.id} isAdmin={isAdmin} showPlace hideWho
+                selecting={selecting} selected={selected.has(tk.id)} selectable={canSelect(tk)}
+                onToggle={toggle}
+                onOpen={(ticket) => setSheet({ type: 'ticket', ticket })}
+              />
+            ))}
+          </div>
+        </div>
+      )
+    })
+  }
+
+  function renderSection(title, list, emptyMsg, kind) {
     const selectableCount = list.filter(canSelect).length
     return (
       <>
@@ -274,7 +312,7 @@ export default function GameDetail() {
           )}
         </div>
         {list.length === 0 && <p className="muted small section-empty">{emptyMsg}</p>}
-        {list.length > 0 && renderRowGroups(list)}
+        {list.length > 0 && (kind ? renderPersonGroups(list, kind) : renderRowGroups(list))}
       </>
     )
   }
@@ -308,8 +346,8 @@ export default function GameDetail() {
 
       <div className="tickets">
         {renderSection('Por atribuir', groups.unassigned, 'Nenhum bilhete por atribuir nesta categoria.')}
-        {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.')}
-        {renderSection('Enviados', groups.sent, 'Nenhum bilhete enviado a convidados nesta categoria.')}
+        {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.', 'reserved')}
+        {renderSection('Enviados', groups.sent, 'Nenhum bilhete enviado a convidados nesta categoria.', 'sent')}
       </div>
 
       {tab === 'camarote' && (
