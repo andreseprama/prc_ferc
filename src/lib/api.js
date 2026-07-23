@@ -32,7 +32,7 @@ export async function fetchGames() {
 export async function fetchGame(id) {
   const { data, error } = await supabase
     .from('games')
-    .select('*, kids:game_kids(id, name, birthdate, added_by, adder:profiles(name)), tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name, company), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by, sharer:profiles!shares_shared_by_fkey(company)))')
+    .select('*, kids:game_kids(id, name, birthdate, added_by, sent_at, sent_by, adder:profiles(name)), tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name, company), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by, sharer:profiles!shares_shared_by_fkey(company)))')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -234,6 +234,16 @@ export async function addKid(gameId, name, birthdate) {
   const { error } = await supabase.from('game_kids').insert({ game_id: gameId, name, birthdate: birthdate || null, added_by: user.id })
   if (error) throw error
   await logActivity('crianca_adicionada', { gameId, details: { nome: name } })
+}
+
+export async function markKidsSent(kidIds, gameId, count) {
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('game_kids')
+    .update({ sent_at: new Date().toISOString(), sent_by: user.id })
+    .in('id', kidIds)
+  if (error) throw error
+  await logActivity('criancas_enviadas', { gameId, details: { criancas: count } })
 }
 
 export async function removeKid(kid) {

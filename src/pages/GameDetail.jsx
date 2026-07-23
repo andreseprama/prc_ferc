@@ -306,18 +306,18 @@ export default function GameDetail() {
 
       <CompanySummary tickets={game.tickets.filter((t) => t.category === tab)} />
 
+      <div className="tickets">
+        {renderSection('Por atribuir', groups.unassigned, 'Nenhum bilhete por atribuir nesta categoria.')}
+        {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.')}
+        {renderSection('Enviados', groups.sent, 'Nenhum bilhete enviado a convidados nesta categoria.')}
+      </div>
+
       {tab === 'camarote' && (
         <KidsCard
           kids={game.kids || []} game={game} me={profile?.id} isAdmin={isAdmin}
           onChange={load}
         />
       )}
-
-      <div className="tickets">
-        {renderSection('Por atribuir', groups.unassigned, 'Nenhum bilhete por atribuir nesta categoria.')}
-        {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.')}
-        {renderSection('Enviados', groups.sent, 'Nenhum bilhete enviado a convidados nesta categoria.')}
-      </div>
 
       {isAdmin && !selecting && (
         <div className="pad">
@@ -440,12 +440,19 @@ function KidsCard({ kids, game, me, isAdmin, onChange }) {
     try { await removeKid(k); onChange() } catch (e) { alert(e.message) }
   }
 
-  function sendToPorto() {
+  async function sendToPorto() {
     const lines = kids.map((k) => `• ${k.name}${k.birthdate ? ` — ${fmtBirth(k.birthdate)}` : ''}`)
     const text = `Crianças para o camarote (extra sem bilhete)\n${game.title} — ${fmtDate(game.match_date)}${game.match_time ? ' às ' + game.match_time : ''}:\n${lines.join('\n')}`
-    logActivity('criancas_enviadas', { gameId: game.id, details: { criancas: kids.length } })
     openWhatsApp(text)
+    try {
+      await markKidsSent(kids.map((k) => k.id), game.id, kids.length)
+      onChange()
+    } catch (e) { alert(e.message) }
   }
+
+  const allSent = kids.length > 0 && kids.every((k) => k.sent_at)
+  const pendingCount = kids.filter((k) => !k.sent_at).length
+  const lastSent = kids.filter((k) => k.sent_at).map((k) => k.sent_at).sort().pop()
 
   return (
     <div className="kids-card">
@@ -458,6 +465,10 @@ function KidsCard({ kids, game, me, isAdmin, onChange }) {
             {k.name}
             {k.birthdate ? <span className="muted small"> · {fmtBirth(k.birthdate)}</span> : null}
             {k.adder?.name ? <span className="muted small"> · com {k.adder.name}</span> : null}
+            {' '}
+            {k.sent_at
+              ? <span className="kid-sent">✓ enviado</span>
+              : <span className="kid-pending">por enviar</span>}
           </span>
           {(isAdmin || k.added_by === me) && (
             <button className="x-btn" onClick={() => remove(k)}>✕</button>
@@ -473,9 +484,14 @@ function KidsCard({ kids, game, me, isAdmin, onChange }) {
       ) : (
         <p className="muted small" style={{ margin: '4px 0 0' }}>Limite do camarote atingido.</p>
       )}
+      {allSent && (
+        <p className="muted small" style={{ margin: '8px 0 0' }}>
+          ✓ Dados enviados por WhatsApp em {new Date(lastSent).toLocaleDateString('pt-PT')} às {new Date(lastSent).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       {kids.length > 0 && (
-        <button className="btn small wa" style={{ marginTop: 10 }} onClick={sendToPorto}>
-          Enviar dados por WhatsApp
+        <button className={`btn small ${allSent ? 'ghost' : 'wa'}`} style={{ marginTop: 8 }} onClick={sendToPorto}>
+          {allSent ? 'Reenviar por WhatsApp' : pendingCount < kids.length ? `Enviar por WhatsApp (${pendingCount} por enviar)` : 'Enviar dados por WhatsApp'}
         </button>
       )}
     </div>

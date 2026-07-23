@@ -298,3 +298,8 @@ create policy "kids_delete" on public.game_kids for delete to authenticated
 
 -- data de nascimento das crianças
 alter table public.game_kids add column if not exists birthdate date;
+
+-- marca de envio das crianças
+alter table public.game_kids add column if not exists sent_at timestamptz;
+alter table public.game_kids add column if not exists sent_by uuid references public.profiles(id) on delete set null;
+create policy "kids_update" on public.game_kids for update to authenticated using (true);

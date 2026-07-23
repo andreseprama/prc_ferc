@@ -344,3 +344,12 @@ a { color: var(--blue); }
 
 .kid-add { flex-wrap: wrap; }
 .kid-add input[type="date"] { width: auto; flex: 1; min-width: 130px; }
+
+.kid-sent {
+  font-size: 11px; font-weight: 700; color: #14683a; background: #e2f4e8;
+  border-radius: 999px; padding: 2px 8px;
+}
+.kid-pending {
+  font-size: 11px; font-weight: 700; color: #8a5a00; background: #fdf3e0;
+  border-radius: 999px; padding: 2px 8px;
+}
