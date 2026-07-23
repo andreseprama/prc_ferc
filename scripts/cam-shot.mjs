@@ -69,46 +69,11 @@ await p.waitForTimeout(1200)
 console.log('detalhe →', (await p.textContent('.tabs'))?.trim())
 await shot('jogo')
 
-// abrir um bilhete (sheet)
-await p.click('.tile >> nth=0')
-await p.waitForTimeout(500)
-console.log('sheet →', (await p.textContent('.sheet'))?.slice(0, 160))
-await shot('sheet')
-await p.click('.sheet-backdrop', { position: { x: 10, y: 10 } })
 
-// separador camarote
 await p.click('.tabs button:has-text("Camarote")')
-await p.waitForTimeout(400)
-console.log('camarote →', (await p.textContent('.tickets'))?.slice(0, 160))
-
-// modo selecionar
-await p.click('button:has-text("Selecionar")')
-await p.click('.tile >> nth=0')
-await p.waitForTimeout(300)
-console.log('floatbar →', (await p.textContent('.floatbar').catch(() => 'FALHOU')))
-await shot('selecao')
-await p.click('.floatbar button:has-text("Reservar")')
-await p.waitForTimeout(400)
-console.log('assign sheet →', (await p.textContent('.sheet'))?.slice(0, 120))
-await p.click('.sheet-backdrop', { position: { x: 10, y: 10 } })
-
-// registo
-await p.click('.tabbar a:has-text("Registo")')
-await p.waitForTimeout(800)
-console.log('registo →', (await p.textContent('.activity'))?.slice(0, 160))
-await shot('registo')
-
-// importar
-await p.click('.tabbar a:has-text("Importar")')
 await p.waitForTimeout(500)
-console.log('importar →', (await p.textContent('.page'))?.slice(0, 140))
-
-// perfil
-await p.click('.tabbar a:has-text("Perfil")')
-await p.waitForTimeout(700)
-console.log('perfil →', (await p.textContent('.page'))?.slice(0, 140))
-await shot('perfil')
-
-console.log('\nERROS:', errors.length ? errors.join('\n') : 'nenhum')
-console.log('SHOTS:', shots.join(' '))
+console.log('kids card →', (await p.textContent('.kids-card').catch(() => 'AUSENTE'))?.slice(0, 120))
+console.log('resumo empresas →', (await p.textContent('.cmp-summary').catch(() => 'AUSENTE')))
+await p.screenshot({ path: '/tmp/camarote.png' })
+console.log('ERROS:', errors.length ? errors.join(' | ') : 'nenhum')
 await b.close()

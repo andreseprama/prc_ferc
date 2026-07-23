@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity, makeShareToken } from '../lib/api'
+import { fetchGame, fetchProfiles, assignTickets, getTicketUrl, shareTicket, revokeShare, updateShareNames, revokeShares, deleteGame, logActivity, makeShareToken, addKid, removeKid } from '../lib/api'
 import { seatLabel } from '../lib/parseTicket'
-import { CATEGORIES, fmtDate, isTaken } from '../lib/format'
+import { CATEGORIES, COMPANIES, fmtDate, isTaken, ticketCompany } from '../lib/format'
 import { useAuth } from '../AuthContext'
 import CatIcon from '../components/CatIcon'
 
@@ -24,6 +24,7 @@ function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle,
     line2 = null // a fila está no cabeçalho do grupo
   }
   const who = share ? initials(share.guest_name) : t.assigned_to ? initials(t.assignee?.name) : null
+  const cmp = ticketCompany(t)
   return (
     <button
       className={`tile st-${state} ${selected ? 'selected' : ''} ${selecting && !selectable ? 'dim' : ''} ${mine ? 'is-mine' : ''}`}
@@ -33,7 +34,7 @@ function TicketTile({ t, me, isAdmin, selected, selecting, selectable, onToggle,
       {selecting && <span className={`tile-check ${selected ? 'on' : ''}`}>{selected ? '✓' : ''}</span>}
       <span className="tile-l1">{line1}</span>
       {line2 && <span className="tile-l2">{line2}</span>}
-      {who && <span className="tile-who">{who}</span>}
+      {who && <span className={`tile-who ${cmp ? 'cmp-' + cmp : ''}`}>{who}</span>}
     </button>
   )
 }
@@ -321,6 +322,15 @@ export default function GameDetail() {
         })}
       </div>
 
+      <CompanySummary tickets={game.tickets.filter((t) => t.category === tab)} />
+
+      {tab === 'camarote' && (
+        <KidsCard
+          kids={game.kids || []} gameId={game.id} me={profile?.id} isAdmin={isAdmin}
+          onChange={load}
+        />
+      )}
+
       <div className="tickets">
         {renderSection('Por atribuir', groups.unassigned, 'Nenhum bilhete por atribuir nesta categoria.')}
         {renderSection('Reservados', groups.reserved, 'Sem reservas nesta categoria.')}
@@ -404,6 +414,72 @@ export default function GameDetail() {
   )
 }
 
+// contagem por empresa (bilhetes ocupados da categoria atual)
+function CompanySummary({ tickets }) {
+  const counts = { procarro: 0, fercopor: 0 }
+  let taken = 0
+  for (const t of tickets) {
+    if (!isTaken(t)) continue
+    taken++
+    const c = ticketCompany(t)
+    if (c && counts[c] !== undefined) counts[c]++
+  }
+  if (!taken) return null
+  return (
+    <div className="cmp-summary">
+      {Object.entries(COMPANIES).map(([key, c]) => (
+        <span key={key} className={`chip cmp-chip cmp-${key}`}>{c.label} · {counts[key]}</span>
+      ))}
+      {taken - counts.procarro - counts.fercopor > 0 && (
+        <span className="chip">Sem empresa · {taken - counts.procarro - counts.fercopor}</span>
+      )}
+    </div>
+  )
+}
+
+// extra do camarote: 2 crianças sem bilhete, com nome registado
+function KidsCard({ kids, gameId, me, isAdmin, onChange }) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const MAX = 2
+
+  async function add() {
+    if (!name.trim()) return
+    setBusy(true)
+    try { await addKid(gameId, name.trim()); setName(''); onChange() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  async function remove(k) {
+    if (!confirm(`Remover ${k.name}?`)) return
+    try { await removeKid(k); onChange() } catch (e) { alert(e.message) }
+  }
+
+  return (
+    <div className="kids-card">
+      <div className="section-head" style={{ margin: '0 0 6px' }}>
+        <span>Crianças — extra sem bilhete</span><span className="count">{kids.length}/{MAX}</span>
+      </div>
+      {kids.map((k) => (
+        <div key={k.id} className="kid-row">
+          <span>{k.name}{k.adder?.name ? <span className="muted small"> · com {k.adder.name}</span> : null}</span>
+          {(isAdmin || k.added_by === me) && (
+            <button className="x-btn" onClick={() => remove(k)}>✕</button>
+          )}
+        </div>
+      ))}
+      {kids.length < MAX ? (
+        <div className="kid-add">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da criança"
+            onKeyDown={(e) => e.key === 'Enter' && add()} />
+          <button className="btn small" onClick={add} disabled={busy || !name.trim()}>Adicionar</button>
+        </div>
+      ) : (
+        <p className="muted small" style={{ margin: '4px 0 0' }}>Limite do camarote atingido.</p>
+      )}
+    </div>
+  )
+}
+
 function Sheet({ title, children, onClose }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -425,7 +501,14 @@ function AssignSheet({ profiles, count, busy, onAssign, onClose }) {
         Para quem?
         <select value={userId} onChange={(e) => setUserId(e.target.value)}>
           <option value="">— escolher —</option>
-          {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {Object.entries(COMPANIES).map(([key, c]) => {
+            const list = profiles.filter((p) => (p.company || 'procarro') === key)
+            return list.length ? (
+              <optgroup key={key} label={c.label}>
+                {list.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </optgroup>
+            ) : null
+          })}
         </select>
       </label>
       <label>

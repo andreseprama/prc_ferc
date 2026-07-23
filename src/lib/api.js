@@ -32,7 +32,7 @@ export async function fetchGames() {
 export async function fetchGame(id) {
   const { data, error } = await supabase
     .from('games')
-    .select('*, tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by))')
+    .select('*, kids:game_kids(id, name, added_by, adder:profiles(name)), tickets(*, assignee:profiles!tickets_assigned_to_fkey(id, name, company), shares(id, guest_name, guest_contact, url, token, revoked, created_at, shared_by, sharer:profiles!shares_shared_by_fkey(company)))')
     .eq('id', id)
     .single()
   if (error) throw error
@@ -219,13 +219,27 @@ export async function updateProfile(id, patch) {
 }
 
 // ---------- gestão de utilizadores (admin) ----------
-export async function adminCreateUser(email, password, name, role) {
+export async function adminCreateUser(email, password, name, role, company) {
   const { data, error } = await supabase.rpc('admin_create_user', {
-    new_email: email, new_password: password, new_name: name, new_role: role,
+    new_email: email, new_password: password, new_name: name, new_role: role, new_company: company,
   })
   if (error) throw error
-  await logActivity('utilizador_criado', { details: { nome: name, email } })
+  await logActivity('utilizador_criado', { details: { nome: name, email, empresa: company } })
   return data
+}
+
+// ---------- crianças no camarote (extra sem bilhete) ----------
+export async function addKid(gameId, name) {
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('game_kids').insert({ game_id: gameId, name, added_by: user.id })
+  if (error) throw error
+  await logActivity('crianca_adicionada', { gameId, details: { nome: name } })
+}
+
+export async function removeKid(kid) {
+  const { error } = await supabase.from('game_kids').delete().eq('id', kid.id)
+  if (error) throw error
+  await logActivity('crianca_removida', { gameId: kid.game_id, details: { nome: kid.name } })
 }
 
 export async function adminDeleteUser(id, name) {

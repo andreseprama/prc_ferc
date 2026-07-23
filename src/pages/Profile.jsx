@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '../AuthContext'
 import { fetchProfiles, updateProfile, adminCreateUser, adminDeleteUser, changeRole, changeMyPassword } from '../lib/api'
+import { COMPANIES } from '../lib/format'
 
 function genPassword() {
   const words = ['Dragao', 'Porto', 'Invicta', 'Azul', 'Antas', 'Campeao']
@@ -15,7 +16,7 @@ export default function Profile() {
   const [people, setPeople] = useState([])
   const [saved, setSaved] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [nu, setNu] = useState({ name: '', email: '', password: genPassword(), role: 'member' })
+  const [nu, setNu] = useState({ name: '', email: '', password: genPassword(), role: 'member', company: 'procarro' })
   const [created, setCreated] = useState(null) // credenciais acabadas de criar
   const [busy, setBusy] = useState(false)
   const [pw, setPw] = useState('')
@@ -44,14 +45,14 @@ export default function Profile() {
   }
 
   async function createUser() {
-    const { name: n, email, password, role } = nu
+    const { name: n, email, password, role, company } = nu
     if (!n.trim() || !/.+@.+\..+/.test(email)) { alert('Preenche o nome e um email válido.'); return }
     if (password.length < 8) { alert('A palavra-passe deve ter pelo menos 8 caracteres.'); return }
     setBusy(true)
     try {
-      await adminCreateUser(email.trim().toLowerCase(), password, n.trim(), role)
+      await adminCreateUser(email.trim().toLowerCase(), password, n.trim(), role, company)
       setCreated({ name: n.trim(), email: email.trim().toLowerCase(), password })
-      setNu({ name: '', email: '', password: genPassword(), role: 'member' })
+      setNu({ name: '', email: '', password: genPassword(), role: 'member', company: 'procarro' })
       setAdding(false)
       loadPeople()
     } catch (e) {
@@ -66,6 +67,10 @@ export default function Profile() {
 
   async function setRole(p, role) {
     try { await changeRole(p.id, role, p.name); loadPeople() } catch (e) { alert(e.message) }
+  }
+
+  async function setCompany(p, company) {
+    try { await updateProfile(p.id, { company }); loadPeople() } catch (e) { alert(e.message) }
   }
 
   const credText = created
@@ -99,11 +104,19 @@ export default function Profile() {
             <h3>Pessoas</h3>
             {people.map((p) => (
               <div key={p.id} className="person-row">
-                <span className="person-name">{p.name}<span className="muted small">{p.email}</span></span>
+                <span className="person-name">
+                  {p.name}
+                  <span className="muted small">{p.email}</span>
+                  <span className={`chip cmp-chip cmp-${p.company || 'procarro'}`}>{COMPANIES[p.company || 'procarro']?.label}</span>
+                </span>
                 {p.id === profile?.id ? (
                   <span className="muted small">Tu (Admin)</span>
                 ) : (
                   <span className="person-actions">
+                    <select value={p.company || 'procarro'} onChange={(e) => setCompany(p, e.target.value)}>
+                      <option value="procarro">Procarro</option>
+                      <option value="fercopor">Fercopor</option>
+                    </select>
                     <select value={p.role} onChange={(e) => setRole(p, e.target.value)}>
                       <option value="member">Membro</option>
                       <option value="admin">Admin</option>
@@ -137,13 +150,22 @@ export default function Profile() {
                     <button className="btn small ghost" onClick={() => setNu({ ...nu, password: genPassword() })}>↻</button>
                   </span>
                 </label>
-                <label>
-                  Perfil
-                  <select value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value })}>
-                    <option value="member">Membro</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </label>
+                <div className="row2">
+                  <label>
+                    Empresa
+                    <select value={nu.company} onChange={(e) => setNu({ ...nu, company: e.target.value })}>
+                      <option value="procarro">Procarro</option>
+                      <option value="fercopor">Fercopor</option>
+                    </select>
+                  </label>
+                  <label>
+                    Perfil
+                    <select value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value })}>
+                      <option value="member">Membro</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </label>
+                </div>
                 <div className="row2">
                   <button className="btn primary small" onClick={createUser} disabled={busy}>{busy ? 'A criar…' : 'Criar conta'}</button>
                   <button className="btn small ghost" onClick={() => setAdding(false)}>Cancelar</button>

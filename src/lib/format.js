@@ -4,6 +4,20 @@ export const CATEGORIES = {
   parque: { label: 'Parque', singular: 'Parque', emoji: '🅿️' },
 }
 
+export const COMPANIES = {
+  procarro: { label: 'Procarro', short: 'PRC' },
+  fercopor: { label: 'Fercopor', short: 'FER' },
+}
+
+// empresa a que um bilhete ocupado "pertence": a de quem o tem reservado,
+// ou, se só foi enviado a convidado, a de quem o enviou
+export function ticketCompany(t) {
+  if (t.assignee?.company) return t.assignee.company
+  const share = (t.shares || []).find((s) => !s.revoked)
+  if (share?.sharer?.company) return share.sharer.company
+  return null
+}
+
 // Um bilhete conta como "atribuído" se estiver reservado para alguém
 // ou enviado a um convidado (partilha ativa)
 export function isTaken(t) {
@@ -32,6 +46,8 @@ export const ACTION_LABELS = {
   partilha_anulada: 'anulou uma partilha',
   bilhete_aberto: 'abriu um bilhete',
   utilizador_criado: 'adicionou um utilizador',
+  crianca_adicionada: 'registou uma criança no camarote',
+  crianca_removida: 'removeu uma criança do camarote',
   utilizador_apagado: 'removeu um utilizador',
   perfil_alterado: 'alterou um perfil',
 }
