@@ -166,8 +166,15 @@ export default function GameDetail() {
     const wa = guestTel
       ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`
-    const w = window.open(wa, '_blank')
-    if (!w) window.location.href = wa
+    // Instalada no ecrã principal: abre o WhatsApp por cima da app (sem separadores novos),
+    // para que ao voltar o utilizador esteja exatamente onde estava.
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+    if (standalone) {
+      window.location.href = wa
+    } else {
+      const w = window.open(wa, '_blank')
+      if (!w) window.location.href = wa
+    }
     setBusy(true)
     try {
       const shareIds = []
