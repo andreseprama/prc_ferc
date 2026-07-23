@@ -41,7 +41,8 @@ export default function Login() {
           {error && <p className="error">{error}</p>}
           <button className="btn primary" disabled={busy}>{busy ? 'A entrar…' : 'Entrar'}</button>
         </form>
-        <p className="muted small">O acesso é criado pelo administrador.</p>
+        <p className="muted small">O acesso é criado pelo administrador. A sessão fica memorizada neste dispositivo.</p>
+        <p className="muted small">💡 Instala a app no ecrã principal (Partilhar → Adicionar ao ecrã principal) para não voltar a pedir login.</p>
       </div>
     </div>
   )
