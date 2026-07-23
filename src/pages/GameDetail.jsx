@@ -302,8 +302,9 @@ export default function GameDetail() {
   function renderSection(title, list, emptyMsg, kind) {
     const selectableCount = list.filter(canSelect).length
     return (
-      <>
+      <section className={`sec sec-${kind || 'free'}`}>
         <div className="section-head">
+          <span className="sec-dot" />
           <span>{title}</span><span className="count">{list.length}</span>
           {selecting && selectableCount > 0 && (
             <button className="link-btn" onClick={() => toggleAll(list)}>
@@ -313,7 +314,7 @@ export default function GameDetail() {
         </div>
         {list.length === 0 && <p className="muted small section-empty">{emptyMsg}</p>}
         {list.length > 0 && (kind ? renderPersonGroups(list, kind) : renderRowGroups(list))}
-      </>
+      </section>
     )
   }
 

@@ -361,3 +361,20 @@ a { color: var(--blue); }
   background: var(--border); color: var(--text); border-radius: 999px;
   padding: 1px 8px; font-size: 12px; font-weight: 600;
 }
+
+/* secções destacadas */
+.sec {
+  border-radius: 14px; border: 1px solid var(--border); background: var(--card);
+  padding: 10px 12px 8px; margin-bottom: 12px;
+}
+.sec .section-head { margin: 0 0 8px; }
+.sec .section-empty { margin: 0 0 4px; }
+.sec-free { background: transparent; border-style: dashed; }
+.sec-reserved { border-color: #b9d2f2; background: #f6f9fe; }
+.sec-sent { border-color: #b5e0c4; background: #f4fbf6; }
+.sec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.sec-reserved .sec-dot { background: var(--blue); }
+.sec-sent .sec-dot { background: #1e8e4e; }
+.sec-reserved .section-head > span:nth-child(2) { color: var(--navy); }
+.sec-sent .section-head > span:nth-child(2) { color: #14683a; }
+.sec .tile { background: #fff; }
