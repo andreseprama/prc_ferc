@@ -47,7 +47,7 @@ export default function GameDetail() {
   const { profile, isAdmin } = useAuth()
   const [game, setGame] = useState(null)
   const [profiles, setProfiles] = useState([])
-  const [tab, setTab] = useState('bancada')
+  const [tab, setTab] = useState('camarote')
   const [error, setError] = useState(null)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState(new Set())
@@ -86,7 +86,7 @@ export default function GameDetail() {
   const cats = useMemo(() => {
     if (!game) return []
     const present = [...new Set(game.tickets.map((t) => t.category))]
-    return ['bancada', 'camarote', 'parque'].filter((c) => present.includes(c))
+    return ['camarote', 'parque', 'bancada'].filter((c) => present.includes(c))
   }, [game])
 
   useEffect(() => {

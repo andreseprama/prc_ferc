@@ -1,7 +1,8 @@
+// ordem de apresentação: Camarote → Parque → Bancadas
 export const CATEGORIES = {
-  bancada: { label: 'Bancadas', singular: 'Bancada', emoji: '🎟️' },
   camarote: { label: 'Camarote', singular: 'Camarote', emoji: '⭐' },
   parque: { label: 'Parque', singular: 'Parque', emoji: '🅿️' },
+  bancada: { label: 'Bancadas', singular: 'Bancada', emoji: '🎟️' },
 }
 
 export const COMPANIES = {
