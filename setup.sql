@@ -295,3 +295,6 @@ create policy "kids_select" on public.game_kids for select to authenticated usin
 create policy "kids_insert" on public.game_kids for insert to authenticated with check (added_by = auth.uid());
 create policy "kids_delete" on public.game_kids for delete to authenticated
   using (added_by = auth.uid() or public.is_admin());
+
+-- data de nascimento das crianças
+alter table public.game_kids add column if not exists birthdate date;

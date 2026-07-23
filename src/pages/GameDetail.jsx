@@ -5,6 +5,7 @@ import { seatLabel } from '../lib/parseTicket'
 import { CATEGORIES, COMPANIES, fmtDate, isTaken, ticketCompany } from '../lib/format'
 import { useAuth } from '../AuthContext'
 import CatIcon from '../components/CatIcon'
+import { openWhatsApp } from '../lib/wa'
 
 function initials(name) {
   if (!name) return ''
@@ -164,26 +165,7 @@ export default function GameDetail() {
       tickets.length > 1
         ? `${tickets.length} bilhetes para ${gameHeader()}. Abre aqui: ${shortLink}`
         : `Bilhete para ${gameHeader()} (${seatLabel(tickets[0])}). Abre aqui: ${shortLink}`
-    const enc = encodeURIComponent(text)
-    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    if (mobile) {
-      // Esquema direto: abre a app do WhatsApp SEM navegar nem criar páginas — ao voltar
-      // ao browser, o utilizador está na nossa app. Funciona em Safari e Chrome.
-      window.location.href = guestTel
-        ? `whatsapp://send?phone=${guestTel}&text=${enc}`
-        : `whatsapp://send?text=${enc}`
-      // recurso: se o WhatsApp não estiver instalado, usa o wa.me
-      setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          const web = guestTel ? `https://wa.me/${guestTel}?text=${enc}` : `https://wa.me/?text=${enc}`
-          const w = window.open(web, '_blank')
-          if (!w) window.location.href = web
-        }
-      }, 2500)
-    } else {
-      // computador: WhatsApp Web em janela nova
-      window.open(guestTel ? `https://wa.me/${guestTel}?text=${enc}` : `https://wa.me/?text=${enc}`, '_blank')
-    }
+    openWhatsApp(text, guestTel)
     setBusy(true)
     try {
       const shareIds = []
@@ -326,7 +308,7 @@ export default function GameDetail() {
 
       {tab === 'camarote' && (
         <KidsCard
-          kids={game.kids || []} gameId={game.id} me={profile?.id} isAdmin={isAdmin}
+          kids={game.kids || []} game={game} me={profile?.id} isAdmin={isAdmin}
           onChange={load}
         />
       )}
@@ -437,21 +419,32 @@ function CompanySummary({ tickets }) {
   )
 }
 
-// extra do camarote: 2 crianças sem bilhete, com nome registado
-function KidsCard({ kids, gameId, me, isAdmin, onChange }) {
+// extra do camarote: 2 crianças sem bilhete, com nome e data de nascimento
+function KidsCard({ kids, game, me, isAdmin, onChange }) {
   const [name, setName] = useState('')
+  const [birthdate, setBirthdate] = useState('')
   const [busy, setBusy] = useState(false)
   const MAX = 2
 
+  const fmtBirth = (d) => (d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT') : null)
+
   async function add() {
     if (!name.trim()) return
+    if (!birthdate) { alert('Indica a data de nascimento.'); return }
     setBusy(true)
-    try { await addKid(gameId, name.trim()); setName(''); onChange() }
+    try { await addKid(game.id, name.trim(), birthdate); setName(''); setBirthdate(''); onChange() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   async function remove(k) {
     if (!confirm(`Remover ${k.name}?`)) return
     try { await removeKid(k); onChange() } catch (e) { alert(e.message) }
+  }
+
+  function sendToPorto() {
+    const lines = kids.map((k) => `• ${k.name}${k.birthdate ? ` — ${fmtBirth(k.birthdate)}` : ''}`)
+    const text = `Crianças para o camarote (extra sem bilhete)\n${game.title} — ${fmtDate(game.match_date)}${game.match_time ? ' às ' + game.match_time : ''}:\n${lines.join('\n')}`
+    logActivity('criancas_enviadas', { gameId: game.id, details: { criancas: kids.length } })
+    openWhatsApp(text)
   }
 
   return (
@@ -461,7 +454,11 @@ function KidsCard({ kids, gameId, me, isAdmin, onChange }) {
       </div>
       {kids.map((k) => (
         <div key={k.id} className="kid-row">
-          <span>{k.name}{k.adder?.name ? <span className="muted small"> · com {k.adder.name}</span> : null}</span>
+          <span>
+            {k.name}
+            {k.birthdate ? <span className="muted small"> · {fmtBirth(k.birthdate)}</span> : null}
+            {k.adder?.name ? <span className="muted small"> · com {k.adder.name}</span> : null}
+          </span>
           {(isAdmin || k.added_by === me) && (
             <button className="x-btn" onClick={() => remove(k)}>✕</button>
           )}
@@ -469,12 +466,17 @@ function KidsCard({ kids, gameId, me, isAdmin, onChange }) {
       ))}
       {kids.length < MAX ? (
         <div className="kid-add">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da criança"
-            onKeyDown={(e) => e.key === 'Enter' && add()} />
-          <button className="btn small" onClick={add} disabled={busy || !name.trim()}>Adicionar</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da criança" />
+          <input type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} max={new Date().toISOString().slice(0, 10)} title="Data de nascimento" />
+          <button className="btn small" onClick={add} disabled={busy || !name.trim()}>OK</button>
         </div>
       ) : (
         <p className="muted small" style={{ margin: '4px 0 0' }}>Limite do camarote atingido.</p>
+      )}
+      {kids.length > 0 && (
+        <button className="btn small wa" style={{ marginTop: 10 }} onClick={sendToPorto}>
+          Enviar dados por WhatsApp
+        </button>
       )}
     </div>
   )

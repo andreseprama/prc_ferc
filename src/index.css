@@ -341,3 +341,6 @@ a { color: var(--blue); }
 }
 .kid-add { display: flex; gap: 8px; margin-top: 8px; }
 .kid-add .btn { flex-shrink: 0; }
+
+.kid-add { flex-wrap: wrap; }
+.kid-add input[type="date"] { width: auto; flex: 1; min-width: 130px; }

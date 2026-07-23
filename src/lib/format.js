@@ -48,6 +48,7 @@ export const ACTION_LABELS = {
   utilizador_criado: 'adicionou um utilizador',
   crianca_adicionada: 'registou uma criança no camarote',
   crianca_removida: 'removeu uma criança do camarote',
+  criancas_enviadas: 'enviou os dados das crianças por WhatsApp',
   utilizador_apagado: 'removeu um utilizador',
   perfil_alterado: 'alterou um perfil',
 }
