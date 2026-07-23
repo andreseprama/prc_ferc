@@ -163,20 +163,25 @@ export default function GameDetail() {
       tickets.length > 1
         ? `${tickets.length} bilhetes para ${gameHeader()}. Abre aqui: ${shortLink}`
         : `Bilhete para ${gameHeader()} (${seatLabel(tickets[0])}). Abre aqui: ${shortLink}`
-    const wa = guestTel
-      ? `https://wa.me/${guestTel}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`
-    // Abertura do WhatsApp compatível com Safari e Chrome:
-    // - app instalada (ecrã principal): navegação direta — abre por cima da app, sem separadores
-    // - Chrome Android após o seletor de contactos: navegação direta (janelas novas seriam bloqueadas)
-    // - browser normal: janela nova, com navegação direta como recurso
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
-    const usedPicker = guestName !== null || guestTel !== null
-    if (standalone || usedPicker) {
-      window.location.href = wa
+    const enc = encodeURIComponent(text)
+    const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if (mobile) {
+      // Esquema direto: abre a app do WhatsApp SEM navegar nem criar páginas — ao voltar
+      // ao browser, o utilizador está na nossa app. Funciona em Safari e Chrome.
+      window.location.href = guestTel
+        ? `whatsapp://send?phone=${guestTel}&text=${enc}`
+        : `whatsapp://send?text=${enc}`
+      // recurso: se o WhatsApp não estiver instalado, usa o wa.me
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          const web = guestTel ? `https://wa.me/${guestTel}?text=${enc}` : `https://wa.me/?text=${enc}`
+          const w = window.open(web, '_blank')
+          if (!w) window.location.href = web
+        }
+      }, 2500)
     } else {
-      const w = window.open(wa, '_blank')
-      if (!w) window.location.href = wa
+      // computador: WhatsApp Web em janela nova
+      window.open(guestTel ? `https://wa.me/${guestTel}?text=${enc}` : `https://wa.me/?text=${enc}`, '_blank')
     }
     setBusy(true)
     try {
